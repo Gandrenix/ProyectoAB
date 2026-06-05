@@ -1,0 +1,19 @@
+# Root gitignore
+node_modules/
+dist/
+.env
+*.db
+*.db-journal
+.DS_Store
+
+# Backend specific
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/*.db
+backend/*.db-journal
+
+# Frontend specific
+frontend/node_modules/
+frontend/dist/
+frontend/.env

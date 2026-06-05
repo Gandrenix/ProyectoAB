@@ -1,0 +1,140 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Food {
+  id                Int      @id @default(autoincrement())
+  group             String
+  externalId        String?  // El campo '#' del CSV
+  name              String
+  baseAmount        Float    // Cantidad(g/mL)
+  householdMeasure  String   // Medida casera
+  
+  // Macronutrientes
+  kcal              Float
+  carbs             Float    // CHO(g)
+  protein           Float    // Proteina(g)
+  fat               Float    // Grasa(g)
+  
+  // Grasas detalladas
+  saturatedFat      Float?   // A.G.S(g)
+  monounsaturatedFat Float?  // A.G.M(g)
+  polyunsaturatedFat Float?  // A.G.P(g)
+  cholesterol       Float?   // Colesterol (mg)
+  
+  // Fibra
+  solubleFiber      Float?
+  insolubleFiber    Float?
+  totalFiber        Float?
+  
+  // Macrominerales
+  calcium           Float?
+  phosphorus        Float?
+  sodium            Float?
+  potassium         Float?
+  magnesium         Float?
+  
+  // Oligoelementos
+  iron              Float?
+  zinc              Float?
+  copper            Float?
+  manganese         Float?
+  selenium          Float?
+  
+  // Vitaminas Liposolubles
+  vitE              Float?
+  vitK              Float?
+  vitD              Float?
+  vitA              Float?
+  
+  // Vitaminas Hidrosolubles
+  vitB1             Float?
+  vitB2             Float?
+  vitB3             Float?
+  vitB5             Float?
+  vitB6             Float?
+  vitB9             Float?
+  vitB12            Float?
+  vitC              Float?
+
+  logEntries        LogEntry[]
+
+  @@map("foods")
+}
+
+model User {
+  id            String     @id @default(uuid())
+  name          String?
+  age           Int
+  gender        String     // "M" | "F"
+  weight        Float
+  activityLevel String     @default("MODERADA") // "LIGERA", "MODERADA", "VIGOROSA"
+  dailyLogs     DailyLog[]
+
+  @@map("users")
+}
+
+model DailyLog {
+  id        String     @id @default(uuid())
+  date      DateTime
+  userId    String     // Vinculado a tabla User
+  user      User       @relation(fields: [userId], references: [id])
+  entries   LogEntry[]
+
+  @@unique([date, userId])
+  @@map("daily_logs")
+}
+
+model EnergyRequirement {
+  id        Int      @id @default(autoincrement())
+  age       Int
+  gender    String   // "M" | "F"
+  light     Float?   // Kcal/kg/día
+  moderate  Float
+  vigorous  Float?
+
+  @@unique([age, gender])
+  @@map("energy_requirements")
+}
+
+model NutrientRequirement {
+  id           Int      @id @default(autoincrement())
+  minAge       Int
+  maxAge       Int
+  gender       String   // "M", "F", "BOTH"
+  nutrient     String   // Coincide con campos del modelo Food (ej: "protein", "carbs")
+  value        Float
+  unit         String   // "g/kg/day", "g/day", "%", "mg/day", etc.
+  type         String   // "RDA", "AI", "AMDR_MIN", "AMDR_MAX"
+
+  @@map("nutrient_requirements")
+}
+
+model LogEntry {
+  id          String    @id @default(uuid())
+  dailyLogId  String
+  dailyLog    DailyLog  @relation(fields: [dailyLogId], references: [id])
+  foodId      Int
+  food        Food      @relation(fields: [foodId], references: [id])
+  
+  mealType    String    @default("Almuerzo") // Desayuno, Almuerzo, Cena, Snack, etc.
+  inputType   InputType
+  inputAmount Float     // Cantidad ingresada por el usuario (ej: 2.5 vasos o 150 gramos)
+  
+  createdAt   DateTime  @default(now())
+
+  @@map("log_entries")
+}
+
+enum InputType {
+  GRAMS
+  HOUSEHOLD
+}

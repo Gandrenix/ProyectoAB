@@ -1,0 +1,23 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+});
+
+export const foodApi = {
+  search: (query: string) => api.get(`/foods/search?q=${query}`),
+  getById: (id: number) => api.get(`/foods/${id}`),
+};
+
+export const logApi = {
+  getSummary: (userId: string, date: string) => api.get(`/daily-log/${userId}/${date}`),
+  addEntry: (data: any) => api.post('/daily-log/entry', data),
+  deleteEntry: (id: string) => api.delete(`/daily-log/entry/${id}`),
+};
+
+export const userApi = {
+  getUser: (id: string) => api.get(`/users/${id}`),
+  updateUser: (id: string, data: any) => api.post(`/users/${id}`, data),
+};
+
+export default api;
