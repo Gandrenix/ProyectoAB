@@ -65,6 +65,8 @@ model Food {
   vitB12            Float?
   vitC              Float?
 
+  water             Float?   // Contenido de agua (g o mL por baseAmount) - FUTURO ICBF
+
   logEntries        LogEntry[]
 
   @@map("foods")
@@ -78,16 +80,19 @@ model User {
   weight        Float
   activityLevel String     @default("MODERADA") // "LIGERA", "MODERADA", "VIGOROSA"
   dailyLogs     DailyLog[]
+  locationId    String?
+  location      LocationModifier? @relation(fields: [locationId], references: [id])
 
   @@map("users")
 }
 
 model DailyLog {
-  id        String     @id @default(uuid())
-  date      DateTime
-  userId    String     // Vinculado a tabla User
-  user      User       @relation(fields: [userId], references: [id])
-  entries   LogEntry[]
+  id             String     @id @default(uuid())
+  date           DateTime
+  userId         String     // Vinculado a tabla User
+  user           User       @relation(fields: [userId], references: [id])
+  entries        LogEntry[]
+  waterIntake_ml Float      @default(0) // Ingesta de líquidos libres (agua pura)
 
   @@unique([date, userId])
   @@map("daily_logs")
@@ -132,6 +137,30 @@ model LogEntry {
   createdAt   DateTime  @default(now())
 
   @@map("log_entries")
+}
+
+model HydrationRequirement {
+  id                 Int    @id @default(autoincrement())
+  minAge             Int
+  maxAge             Int
+  gender             String // "M", "F", "BOTH"
+  totalWater_ml      Float
+  foodWaterTarget_ml Float
+  freeFluidTarget_ml Float
+
+  @@map("hydration_requirements")
+}
+
+model LocationModifier {
+  id               String @id @default(uuid())
+  city             String @unique
+  department       String
+  altitude         Int
+  thermalFloor     String
+  adjustmentFactor Float // Factor de ajuste (ej: 0.30 para +30%)
+  users            User[]
+
+  @@map("location_modifiers")
 }
 
 enum InputType {

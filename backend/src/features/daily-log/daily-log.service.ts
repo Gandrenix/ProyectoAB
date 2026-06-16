@@ -9,12 +9,13 @@ const NUTRITION_KEYS = [
   'calcium', 'phosphorus', 'sodium', 'potassium', 'magnesium',
   'iron', 'zinc', 'copper', 'manganese', 'selenium',
   'vitE', 'vitK', 'vitD', 'vitA',
-  'vitB1', 'vitB2', 'vitB3', 'vitB5', 'vitB6', 'vitB9', 'vitB12', 'vitC'
+  'vitB1', 'vitB2', 'vitB3', 'vitB5', 'vitB6', 'vitB9', 'vitB12', 'vitC', 'water'
 ];
 
 @Injectable()
 export class DailyLogService {
   constructor(private readonly prisma: PrismaService) {}
+
 
   async addEntry(dto: {
     date: string;
@@ -123,7 +124,11 @@ export class DailyLogService {
       id: dailyLog.id,
       date: dailyLog.date,
       entries: calculatedEntries,
-      totals,
+      totals: {
+        ...totals,
+        waterIntake_ml: dailyLog.waterIntake_ml,
+        totalWater_ml: (totals.water || 0) + dailyLog.waterIntake_ml,
+      },
       targets: await this.calculateTargets(user),
       user
     };
@@ -133,7 +138,7 @@ export class DailyLogService {
     console.log(`[DailyLogService] calculateTargets called for user:`, user);
     if (!user) return null;
 
-    const [energyReq, nutrientReqs] = await Promise.all([
+    const [energyReq, nutrientReqs, hydrationReq, userLocation] = await Promise.all([
       this.prisma.energyRequirement.findFirst({
         where: { 
           age: user.age,
@@ -149,7 +154,17 @@ export class DailyLogService {
             { gender: 'BOTH' }
           ]
         }
-      })
+      }),
+      this.prisma.hydrationRequirement.findFirst({
+        where: {
+          minAge: { lte: user.age },
+          maxAge: { gte: user.age },
+          gender: { in: [user.gender, 'BOTH'] },
+        },
+      }),
+      user.locationId ? this.prisma.locationModifier.findUnique({
+        where: { id: user.locationId }
+      }) : Promise.resolve(null)
     ]);
 
     console.log(`[DailyLogService] Found energyReq:`, energyReq);
@@ -164,6 +179,21 @@ export class DailyLogService {
                         energyReq.moderate;
       console.log(`[DailyLogService] Energy calculation: level=${user.activityLevel}, kcalPerKg=${kcalPerKg}, weight=${user.weight}`);
       targets.kcal.target = (kcalPerKg || energyReq.moderate) * user.weight;
+    }
+
+    // Calcular Hidratación
+    if (hydrationReq) {
+      const geoFactor = userLocation?.adjustmentFactor ?? 0;
+      let activityAdjustment = 0;
+      const activityLevel = user.activityLevel.toUpperCase();
+      if (activityLevel === 'MODERADA') activityAdjustment = 1000;
+      else if (activityLevel === 'VIGOROSA') activityAdjustment = 2000;
+
+      targets.totalWater = {
+        target: hydrationReq.totalWater_ml * (1 + geoFactor) + activityAdjustment,
+        food_target: hydrationReq.foodWaterTarget_ml,
+        fluid_target: hydrationReq.freeFluidTarget_ml
+      };
     }
 
     // Calcular Nutrientes Detallados

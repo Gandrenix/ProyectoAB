@@ -1655,13 +1655,15 @@ export default defineConfig({
 
 ```
 
-## 9. Actualización: Semáforo Dinámico, Perfiles Adultos y Alertas Inteligentes
-El sistema ha recibido una actualización mayor en la gestión de perfiles nutricionales para garantizar soporte completo a todas las edades y una mejor retroalimentación visual:
+## 9. Módulo de Hidratación Personalizada (Nuevo)
+Se ha implementado un sistema avanzado de hidratación que trasciende las recomendaciones genéricas, basándose en la ciencia biofísica del documento "Ingesta de Líquidos en Poblaciones Sanas".
 
-1. **Perfiles Universales (Corrección de Bug):** Se reestructuró el script `seed_profiles.ts` para extraer dinámicamente todos los rangos de edad del documento de perfiles. Esto soluciona el problema de "Perfil no implementado" para adultos (ej. 30 años) y adultos mayores, integrando sus requerimientos de energía basados en TMB y peso, así como las métricas AMDR, RDA, AI y UL completas.
-2. **Metodología del Semáforo en Frontend:** El componente `ProgressBar` ahora implementa la lógica completa del semáforo:
-   - **Rojo:** Déficit importante (muy por debajo de RDA o AI).
-   - **Ámbar:** Consumo aceptable (supera el mínimo pero no está en rango óptimo AMDR).
-   - **Verde:** Consumo óptimo (dentro de AMDR o superando el RDA sin llegar a excesos).
-   - **Rojo Oscuro:** Exceso (supera los límites superiores tolerables UL o AMDR máximo).
-3. **Alertas Críticas Dinámicas:** Se eliminó la antigua advertencia estática de "Trabajo en proceso". En su lugar, el sistema ahora genera **Alertas Críticas Inteligentes** que analizan todos los nutrientes en tiempo real y notifican al usuario con una animación llamativa si se detecta un exceso crítico (por encima del UL) o un déficit severo (por debajo del 30% del requerimiento), mejorando drásticamente la capacidad de monitoreo de la salud.
+### Características Clave:
+1.  **Metas Geográficas:** El sistema ajusta la necesidad de agua según la ciudad (ej: Bogotá +17.5%, Barranquilla +30%) considerando altitud y temperatura.
+2.  **Ajuste por Actividad:** Suma automáticamente mL adicionales basados en el nivel de actividad (Moderada/Vigorosa) para compensar la sudoración.
+3.  **Evaluación de "Agua Total":** El sistema está listo para el futuro ICBF; hoy compara el agua bebida, pero ya puede sumar el agua intrínseca de los alimentos si estos la contienen.
+4.  **Semáforo de Seguridad:** 
+    *   **Verde:** Óptimo.
+    *   **Ámbar:** Precaución (Déficit leve).
+    *   **Rojo:** Deshidratación.
+    *   **Rojo Oscuro:** Alerta de sobrehidratación (Riesgo de hiponatremia).

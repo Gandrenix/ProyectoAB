@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { useDailyLogStore } from './store/useDailyLogStore';
-import { logApi, foodApi, userApi } from './api/api';
-import { Search, Trash2, ChevronLeft, ChevronRight, Calculator, Activity, Settings2, Info, User, AlertTriangle } from 'lucide-react';
+import { logApi, foodApi, hydrationApi, userApi } from './api/api';
+import { Search, Trash2, ChevronLeft, ChevronRight, Calculator, Activity, Settings2, Info, Droplets, AlertTriangle, User } from 'lucide-react';
 
 const NUTRIENT_GROUPS = [
+
   { 
     title: 'Grasas Detalladas', 
     fields: [
@@ -62,7 +63,10 @@ const NUTRIENT_GROUPS = [
 ];
 
 const App: React.FC = () => {
-  const { selectedDate, setSelectedDate, userId, userProfile, setUserProfile, targets, setTargets } = useDailyLogStore();
+  const { 
+    selectedDate, setSelectedDate, userId, userProfile, setUserProfile, targets, setTargets,
+    currentFluid_ml, currentFoodWater_ml, hydrationGoal_ml, setHydrationData 
+  } = useDailyLogStore();
   const [summary, setSummary] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -75,13 +79,15 @@ const App: React.FC = () => {
   const [mealType, setMealType] = useState('Desayuno');
   const [customMealType, setCustomMealType] = useState('');
   const [isCustomMeal, setIsCustomMeal] = useState(false);
+  const [locations, setLocations] = useState<any[]>([]);
 
   // Formulario de perfil
   const [profileForm, setProfileForm] = useState({
     age: 10,
     gender: 'M',
     weight: 32,
-    activityLevel: 'MODERADA'
+    activityLevel: 'MODERADA',
+    locationId: ''
   });
 
   const fetchSummary = async () => {
@@ -93,6 +99,38 @@ const App: React.FC = () => {
       setSummary(res.data);
       if (res.data.user) setUserProfile(res.data.user);
       if (res.data.targets) setTargets(res.data.targets);
+
+      // Actualizar datos de hidratación en el store
+      if (res.data) {
+        setHydrationData(
+          res.data.totals?.waterIntake_ml || 0,
+          res.data.totals?.water || 0,
+          res.data.targets?.totalWater?.target || 2000
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const res = await hydrationApi.getLocations();
+      setLocations(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateIntake = async (amount: number) => {
+    try {
+      const newAmount = Math.max(0, currentFluid_ml + amount);
+      await hydrationApi.updateIntake({
+        userId,
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        amount_ml: newAmount,
+      });
+      fetchSummary();
     } catch (err) {
       console.error(err);
     }
@@ -100,6 +138,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     fetchSummary();
+    fetchLocations();
   }, [selectedDate, userId]);
 
   useEffect(() => {
@@ -108,7 +147,8 @@ const App: React.FC = () => {
         age: userProfile.age,
         gender: userProfile.gender,
         weight: userProfile.weight,
-        activityLevel: userProfile.activityLevel
+        activityLevel: userProfile.activityLevel,
+        locationId: userProfile.locationId || ''
       });
     }
   }, [userProfile]);
@@ -187,7 +227,7 @@ const App: React.FC = () => {
     return baseValue * factor;
   };
 
-  const ProgressBar = ({ label, current, bounds, unit }: any) => {
+  const ProgressBar = ({ label, current, bounds, unit, isHydration }: any) => {
     let percentage = 0;
     let color = 'bg-slate-700';
     let targetDisplay = 'Sin Meta';
@@ -212,7 +252,13 @@ const App: React.FC = () => {
           else if (target > 0) targetDisplay = `/ ${target.toFixed(target < 1 ? 2 : 0)}${unit}`;
           else if (limit > 0) targetDisplay = `< ${limit.toFixed(limit < 1 ? 2 : 0)}${unit}`;
 
-          if (target > 0) {
+          if (isHydration) {
+            // Mecánica del Semáforo de Hidratación
+            if (limit > 0 && current >= limit) color = 'bg-rose-950 border border-rose-500 animate-pulse'; // Rojo Oscuro Alerta Crítica
+            else if (target > 0 && current >= target) color = 'bg-emerald-500'; // Verde
+            else if (target > 0 && current >= target * 0.7) color = 'bg-amber-500'; // Ámbar
+            else color = 'bg-rose-500'; // Rojo
+          } else if (target > 0) {
              if (amdrMin > 0 || amdrMax > 0) {
                  if (rda > 0 && current < rda) color = 'bg-rose-500'; 
                  else if (current >= rda && current < amdrMin) color = 'bg-amber-500'; 
@@ -377,6 +423,45 @@ const App: React.FC = () => {
                   bounds={activeTargets?.fat} 
                   unit="g" 
                 />
+              </div>
+
+              {/* Nueva Sección de Hidratación */}
+              <div className="bg-slate-900/40 p-5 rounded-2xl border border-blue-500/20 space-y-4">
+                 <div className="flex justify-between items-center mb-1">
+                    <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                       <Droplets className="text-blue-400" size={16} /> Hidratación
+                    </h3>
+                    <div className="flex items-center gap-1">
+                       <button onClick={() => handleUpdateIntake(-250)} className="p-1 hover:bg-slate-700 rounded-lg text-blue-400 text-xs">
+                         <Trash2 size={12} className="rotate-45" />
+                       </button>
+                       <button 
+                         onClick={() => handleUpdateIntake(250)} 
+                         className="bg-blue-500/20 hover:bg-blue-500/40 text-blue-400 px-2 py-1 rounded-lg text-[10px] font-bold border border-blue-500/30 transition-all"
+                       >
+                         + 250ml
+                       </button>
+                    </div>
+                 </div>
+
+                 <ProgressBar 
+                    label="Agua Total" 
+                    current={currentFluid_ml + currentFoodWater_ml} 
+                    bounds={{ target: hydrationGoal_ml, ul: hydrationGoal_ml * 1.5 }} 
+                    unit=" ml" 
+                    isHydration={true}
+                 />
+
+                 <div className="grid grid-cols-2 gap-3 mt-2">
+                    <div className="text-center p-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                       <div className="text-[9px] uppercase font-bold text-slate-500 mb-0.5">Líquidos</div>
+                       <div className="text-xs font-black text-blue-400">{currentFluid_ml} <span className="text-[8px] font-normal">ml</span></div>
+                    </div>
+                    <div className="text-center p-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                       <div className="text-[9px] uppercase font-bold text-slate-500 mb-0.5">Alimentos</div>
+                       <div className="text-xs font-black text-emerald-400">{currentFoodWater_ml.toFixed(0)} <span className="text-[8px] font-normal">ml</span></div>
+                    </div>
+                 </div>
               </div>
 
               {showAdvanced && (
@@ -581,6 +666,22 @@ const App: React.FC = () => {
                   <option value="LIGERA">Ligera</option>
                   <option value="MODERADA">Moderada</option>
                   <option value="VIGOROSA">Vigorosa</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Ubicación (Ajuste por Clima)</label>
+                <select 
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:border-emerald-500 outline-none transition-all"
+                  value={profileForm.locationId}
+                  onChange={(e) => setProfileForm({...profileForm, locationId: e.target.value})}
+                >
+                  <option value="">Seleccionar Ciudad...</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.city} ({loc.thermalFloor})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

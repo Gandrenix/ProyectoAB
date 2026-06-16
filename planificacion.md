@@ -160,7 +160,21 @@ Este diseño asegura precisión nutricional eliminando la confusión entre peso 
 
 **Siguiente paso:** Configuración del entorno de base de datos y script de seeding inicial.
 
-## 9. Actualización Final: Lógica de Semáforo, Perfiles Adultos y Alertas Dinámicas
-- **Completitud de Perfiles:** El flujo de datos ahora incluye todos los rangos de edad (infantes, adultos y mayores de 60 años), resolviendo el bug de perfiles faltantes mediante una extracción exhaustiva de los datos del CSV y Markdown (incluyendo RDA, AI, UL, AMDR_MIN, AMDR_MAX).
-- **Semáforo Nutricional:** El Frontend utiliza estos umbrales para determinar la completitud de la barra de progreso y su color semántico (Rojo: déficit/exceso, Ámbar: aceptable, Verde: óptimo), logrando alta precisión.
-- **Sistema de Alertas:** Se rediseñó el sistema de advertencias para que evalúe en tiempo real el consumo total del día. Ahora notifica proactivamente déficits severos (< 30% del RDA) o excesos peligrosos (> UL) mediante alertas visuales dinámicas.
+## 10. Módulo de Hidratación Personalizada (Implementado)
+
+### Arquitectura de Homeostasis Hídrica:
+- **Modelo Relacional:** Se incorporaron las tablas `HydrationRequirement` (requerimientos basales por edad/género) y `LocationModifier` (ajustes por piso térmico y altitud en Colombia).
+- **Lógica de Cálculo Dinámico:**
+  - `Meta Agua Total (mL) = Basal * (1 + Ajuste Geográfico) + Ajuste Actividad Física`.
+  - Ajustes de Actividad: MODERADA (+1000 mL), VIGOROSA (+2000 mL).
+  - Ajustes Geográficos: Desde 0% (Medellín/Popayán) hasta +35-40% (Barranquilla/Valledupar/Quibdó).
+
+### Integración de Datos:
+- **Escenario Actual:** Cálculo de meta de Agua Total comparada con ingesta de líquidos libres (el agua de alimentos se asume 0).
+- **Escenario Futuro (ICBF):** El sistema ya suma `Líquidos Libres + Agua Intrinseca (Food.water)` para comparar contra la meta total, permitiendo compensaciones dietéticas.
+
+### Visualización (Semáforo):
+- **Verde:** Cumplimiento de meta.
+- **Ámbar:** Consumo subóptimo (70-99% de la meta).
+- **Rojo:** Déficit severo.
+- **Rojo Oscuro (Animado):** Riesgo de intoxicación por agua (supera 1.5x la meta).

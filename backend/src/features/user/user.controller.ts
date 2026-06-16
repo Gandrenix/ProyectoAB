@@ -7,6 +7,7 @@ class UpdateUserDto {
   gender: string;
   weight: number;
   activityLevel: string;
+  locationId?: string;
 }
 
 @Controller('users')

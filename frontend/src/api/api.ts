@@ -15,6 +15,12 @@ export const logApi = {
   deleteEntry: (id: string) => api.delete(`/daily-log/entry/${id}`),
 };
 
+export const hydrationApi = {
+  getGoal: (userId: string) => api.get(`/hydration/goal/${userId}`),
+  getLocations: () => api.get('/hydration/locations'),
+  updateIntake: (data: { userId: string; date: string; amount_ml: number }) => api.post('/hydration/intake', data),
+};
+
 export const userApi = {
   getUser: (id: string) => api.get(`/users/${id}`),
   updateUser: (id: string, data: any) => api.post(`/users/${id}`, data),
