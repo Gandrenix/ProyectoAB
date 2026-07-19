@@ -70,6 +70,7 @@ const App: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [source, setSource] = useState<'UIS' | 'ICBF'>('UIS');
   const [showModal, setShowModal] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -165,15 +166,23 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSearch = async (q: string) => {
+  const handleSearch = async (q: string, src: string = source) => {
     setSearchQuery(q);
     if (q.length >= 2) {
-      const res = await foodApi.search(q);
-      setSearchResults(res.data);
+      const res = await foodApi.search(q, src);
+      const foods = res.data.map((f: any) => ({ ...f, dbSource: src }));
+      setSearchResults(foods);
     } else {
       setSearchResults([]);
     }
   };
+
+  useEffect(() => {
+    setSearchResults([]);
+    if (searchQuery.length >= 2) {
+      handleSearch(searchQuery, source);
+    }
+  }, [source]);
 
   const handleAddEntry = async () => {
     try {
@@ -182,14 +191,21 @@ const App: React.FC = () => {
 
       const finalMealType = isCustomMeal && customMealType.trim() !== '' ? customMealType.trim() : mealType;
 
-      await logApi.addEntry({
+      const payload: any = {
         date: format(selectedDate, 'yyyy-MM-dd'),
         userId,
-        foodId: selectedFood.id,
         mealType: finalMealType,
         inputType,
         inputAmount: amountNum,
-      });
+      };
+
+      if (selectedFood.dbSource === 'ICBF') {
+        payload.foodIcbfId = selectedFood.id;
+      } else {
+        payload.foodUisId = selectedFood.id;
+      }
+
+      await logApi.addEntry(payload);
       setShowModal(false);
       setSelectedFood(null);
       setSearchQuery('');
@@ -221,9 +237,10 @@ const App: React.FC = () => {
     if (!selectedFood) return 0;
     const amountNum = Number(inputAmount) || 0;
     const baseValue = selectedFood[field] || 0;
+    const baseAmount = selectedFood.dbSource === 'ICBF' ? 100 : selectedFood.baseAmount;
     const factor = inputType === 'HOUSEHOLD' 
       ? amountNum 
-      : amountNum / selectedFood.baseAmount;
+      : amountNum / baseAmount;
     return baseValue * factor;
   };
 
@@ -266,8 +283,19 @@ const App: React.FC = () => {
                  else if (limit > 0 && current > limit) color = 'bg-rose-600'; 
                  else color = 'bg-emerald-500';
              } else {
-                 if (current < target) color = current >= target * 0.8 ? 'bg-amber-500' : 'bg-rose-500';
-                 else color = (limit > 0 && current > limit) ? 'bg-rose-600' : 'bg-emerald-500';
+                  if (current < target) {
+                      color = current >= target * 0.8 ? 'bg-amber-500' : 'bg-rose-500';
+                  } else {
+                      if (limit > 0 && current > limit) {
+                          color = 'bg-rose-600';
+                      } else if (current > target * 1.2) {
+                          color = 'bg-rose-500'; // Exceso severo
+                      } else if (current > target * 1.1) {
+                          color = 'bg-amber-500'; // Exceso leve
+                      } else {
+                          color = 'bg-emerald-500'; // Óptimo
+                      }
+                  }
              }
           } else if (limit > 0) {
              if (current > limit) color = 'bg-rose-600';
@@ -489,12 +517,26 @@ const App: React.FC = () => {
 
           {/* Buscador */}
           <div className="relative group">
-            <div className="flex items-center bg-slate-800 border-2 border-slate-700 rounded-2xl px-5 py-3 group-focus-within:border-emerald-500/50 group-focus-within:ring-4 ring-emerald-500/10 transition-all shadow-lg">
-              <Search className="text-slate-500 group-focus-within:text-emerald-400" size={20} />
+            <div className="flex items-center bg-slate-800 border-2 border-slate-700 rounded-2xl px-3 py-2 group-focus-within:border-emerald-500/50 group-focus-within:ring-4 ring-emerald-500/10 transition-all shadow-lg">
+              <div className="flex bg-slate-900 rounded-xl overflow-hidden border border-slate-700 mr-2 shrink-0">
+                <button
+                  onClick={() => setSource('UIS')}
+                  className={`px-3 py-1.5 text-[10px] font-bold tracking-wider transition-colors ${source === 'UIS' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  UIS
+                </button>
+                <button
+                  onClick={() => setSource('ICBF')}
+                  className={`px-3 py-1.5 text-[10px] font-bold tracking-wider transition-colors ${source === 'ICBF' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  ICBF
+                </button>
+              </div>
+              <Search className="text-slate-500 group-focus-within:text-emerald-400" size={18} />
               <input
                 type="text"
                 placeholder="¿Qué comiste hoy?"
-                className="bg-transparent border-none focus:outline-none ml-3 w-full text-slate-100 placeholder:text-slate-600 font-medium text-lg"
+                className="bg-transparent border-none focus:outline-none ml-2 w-full text-slate-100 placeholder:text-slate-600 font-medium text-base"
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
               />
@@ -504,16 +546,23 @@ const App: React.FC = () => {
               <div className="absolute top-full left-0 right-0 mt-3 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl z-20 max-h-80 overflow-y-auto overflow-x-hidden backdrop-blur-xl divide-y divide-slate-700/50">
                 {searchResults.map((food: any) => (
                   <button
-                    key={food.id}
+                    key={`${food.dbSource}-${food.id}`}
                     className="w-full text-left p-4 hover:bg-slate-750 transition-colors group/item flex justify-between items-center"
                     onClick={() => {
                       setSelectedFood(food);
+                      if (food.dbSource === 'ICBF') {
+                        setInputType('GRAMS');
+                      } else {
+                        setInputType('HOUSEHOLD');
+                      }
                       setShowModal(true);
                     }}
                   >
                     <div className="flex-1 pr-4">
                       <div className="font-bold text-slate-200 group-hover/item:text-emerald-400 transition-colors">{food.name}</div>
-                      <div className="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-wider">{food.group} • {food.baseAmount}g = {food.kcal} kcal</div>
+                      <div className="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-wider">
+                        {food.dbSource === 'ICBF' ? `ICBF (${food.code})` : food.group} • {food.dbSource === 'ICBF' ? '100' : food.baseAmount}g = {food.kcal} kcal
+                      </div>
                     </div>
                     <div className="bg-slate-700 p-2 rounded-lg text-slate-400 group-hover/item:bg-emerald-500 group-hover/item:text-white transition-all">
                       <Trash2 size={16} className="rotate-45" />
@@ -564,7 +613,9 @@ const App: React.FC = () => {
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-slate-100 text-lg leading-tight">{entry.food.name}</h3>
-                                    <span className="text-[10px] text-slate-500 font-black px-1.5 py-0.5 rounded bg-slate-900 uppercase">{entry.food.group}</span>
+                                    <span className="text-[10px] text-slate-500 font-black px-1.5 py-0.5 rounded bg-slate-900 uppercase">
+                                      {entry.source === 'ICBF' ? 'ICBF' : entry.food.group}
+                                    </span>
                                   </div>
                                   <div className="text-sm text-slate-400 mt-1 font-medium">
                                     {entry.inputAmount} <span className="text-slate-500 text-xs font-bold uppercase">{entry.inputType === 'HOUSEHOLD' ? entry.food.householdMeasure : 'gramos'}</span>
@@ -711,17 +762,21 @@ const App: React.FC = () => {
             <div className="p-8 border-b border-slate-700 bg-gradient-to-br from-emerald-500/20 to-transparent relative shrink-0">
               <div className="bg-emerald-500 w-12 h-1 rounded-full mb-4 opacity-50"></div>
               <h2 className="text-3xl font-black text-white leading-tight">{selectedFood.name}</h2>
-              <p className="text-emerald-400/80 text-sm font-bold uppercase tracking-widest mt-1">{selectedFood.group} • {selectedFood.baseAmount}g Base</p>
+              <p className="text-emerald-400/80 text-sm font-bold uppercase tracking-widest mt-1">
+                {selectedFood.dbSource === 'ICBF' ? 'ICBF' : selectedFood.group} • {selectedFood.dbSource === 'ICBF' ? '100' : selectedFood.baseAmount}g Base
+              </p>
             </div>
             
             <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1">
               <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-700 shadow-inner shrink-0">
-                <button
-                  className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${inputType === 'HOUSEHOLD' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                  onClick={() => setInputType('HOUSEHOLD')}
-                >
-                  Medida Casera
-                </button>
+                {selectedFood.dbSource !== 'ICBF' && (
+                  <button
+                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${inputType === 'HOUSEHOLD' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                    onClick={() => setInputType('HOUSEHOLD')}
+                  >
+                    Medida Casera
+                  </button>
+                )}
                 <button
                   className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${inputType === 'GRAMS' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                   onClick={() => setInputType('GRAMS')}

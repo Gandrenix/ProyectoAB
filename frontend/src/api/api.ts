@@ -5,8 +5,8 @@ const api = axios.create({
 });
 
 export const foodApi = {
-  search: (query: string) => api.get(`/foods/search?q=${query}`),
-  getById: (id: number) => api.get(`/foods/${id}`),
+  search: (query: string, source: string = 'UIS') => api.get(`/foods/search?q=${query}&source=${source}`),
+  getById: (id: number, source: string = 'UIS') => api.get(`/foods/${id}?source=${source}`),
 };
 
 export const logApi = {

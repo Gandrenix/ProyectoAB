@@ -12,12 +12,16 @@ export class UserService {
   }
 
   async updateUser(id: string, data: any) {
+    const cleanData = { ...data };
+    if (cleanData.locationId === '') {
+      cleanData.locationId = null;
+    }
     return this.prisma.user.upsert({
       where: { id },
-      update: data,
+      update: cleanData,
       create: {
         id,
-        ...data,
+        ...cleanData,
       },
     });
   }

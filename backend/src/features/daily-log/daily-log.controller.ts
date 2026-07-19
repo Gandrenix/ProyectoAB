@@ -5,7 +5,8 @@ import { InputType } from '@prisma/client';
 class AddEntryDto {
   date: string; // YYYY-MM-DD
   userId: string;
-  foodId: number;
+  foodUisId?: number;
+  foodIcbfId?: number;
   mealType: string;
   inputType: InputType;
   inputAmount: number;

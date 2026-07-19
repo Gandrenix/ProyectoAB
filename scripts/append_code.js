@@ -1,9 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 
-const projectRoot = 'C:/Users/Asus/Desktop/Proyecto AlbertoA';
+const projectRoot = path.resolve(__dirname, '..');
 const resumenPath = path.join(projectRoot, 'resumen.md');
 let resumenContent = fs.readFileSync(resumenPath, 'utf8');
+
+// Truncate old auto-generated sections to prevent duplicate appends
+const splitIndex = resumenContent.indexOf('## 6. Arquitectura del Sistema (Diagrama)');
+const splitIndex2 = resumenContent.indexOf('## 7. Arquitectura del Sistema (Diagrama)');
+const targetIndex = splitIndex !== -1 ? splitIndex : splitIndex2;
+if (targetIndex !== -1) {
+  resumenContent = resumenContent.substring(0, targetIndex).trim() + '\n';
+}
 
 const mermaidDiagram = '\n## 6. Arquitectura del Sistema (Diagrama)\n\n' +
 '```mermaid\n' +

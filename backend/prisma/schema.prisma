@@ -10,7 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Food {
+model FoodUis {
   id                Int      @id @default(autoincrement())
   group             String
   externalId        String?  // El campo '#' del CSV
@@ -69,7 +69,52 @@ model Food {
 
   logEntries        LogEntry[]
 
-  @@map("foods")
+  @@map("foods_uis")
+}
+
+model FoodIcbf {
+  id                Int      @id @default(autoincrement())
+  code              String   @unique  // "Código"
+  name              String            // "Nombre del Alimento"
+  analyzedPart      String?           // "Parte Analizada"
+  
+  water             Float?   // Humedad (g)
+  kcal              Float?   // Energía (Kcal)
+  energy_kj         Float?   // Energía (kJ)
+  protein           Float?   // Proteína (g)
+  fat               Float?   // Lípidos (g)
+  carbsTotal        Float?   // Carbohidratos Totales (g)
+  carbs             Float?   // Carbohidratos Disponibles (g)
+  totalFiber        Float?   // Fibra Dietaria (g)
+  ash               Float?   // Cenizas (g)
+  
+  calcium           Float?   // Calcio (mg)
+  iron              Float?   // Hierro (mg)
+  sodium            Float?   // Sodio (mg)
+  phosphorus        Float?   // Fósforo (mg)
+  iodine            Float?   // Yodo (mg)
+  zinc              Float?   // Zinc (mg)
+  magnesium         Float?   // Magnesio (mg)
+  potassium         Float?   // Potasio (mg)
+  
+  vitB1             Float?   // Tiamina (mg)
+  vitB2             Float?   // Riboflavina (mg)
+  vitB3             Float?   // Niacina (mg)
+  vitB9             Float?   // Folatos (mcg)
+  vitB12            Float?   // Vitamina B12 (mcg)
+  vitC              Float?   // Vitamina C (mg)
+  vitA              Float?   // Vitamina A (ER)
+  
+  saturatedFat      Float?   // Grasa Saturada (g)
+  monounsaturatedFat Float?  // Grasa Monoinsaturada (g)
+  polyunsaturatedFat Float?  // Grasa Poliinsaturada (g)
+  cholesterol       Float?   // Colesterol (mg)
+  
+  ediblePart        Float?   // Parte Comestible (%)
+
+  logEntries        LogEntry[]
+
+  @@map("foods_icbf")
 }
 
 model User {
@@ -127,8 +172,12 @@ model LogEntry {
   id          String    @id @default(uuid())
   dailyLogId  String
   dailyLog    DailyLog  @relation(fields: [dailyLogId], references: [id])
-  foodId      Int
-  food        Food      @relation(fields: [foodId], references: [id])
+  
+  foodUisId   Int?
+  foodUis     FoodUis?  @relation(fields: [foodUisId], references: [id])
+  
+  foodIcbfId  Int?
+  foodIcbf    FoodIcbf? @relation(fields: [foodIcbfId], references: [id])
   
   mealType    String    @default("Almuerzo") // Desayuno, Almuerzo, Cena, Snack, etc.
   inputType   InputType

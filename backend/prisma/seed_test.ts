@@ -1,13 +1,13 @@
-import { PrismaClient } from '@prisma/client';
-import 'dotenv/config';
-
-const prisma = new PrismaClient();
+import * as fs from 'fs';
+import * as path from 'path';
 
 async function main() {
-  console.log('Seed test started');
-  await prisma.$connect();
-  console.log('Connected');
-  await prisma.$disconnect();
+  const csvFilePath = path.resolve(__dirname, '../../Base de datos Sistema Alimentos equivalentes .csv');
+  const content = fs.readFileSync(csvFilePath, 'utf8');
+  const lines = content.split('\n');
+  console.log('--- CSV Headers Row 2 ---');
+  console.log(lines[1]);
 }
 
 main();
+
